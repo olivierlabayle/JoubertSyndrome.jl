@@ -1,0 +1,13 @@
+name = "JoubertSyndrome"
+uuid = "f17ff6a6-f690-4e84-9dc1-f04efb005bbd"
+authors = ["Olivier Labayle"]
+version = "0.1.0"
+
+[compat]
+julia = "1.1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
