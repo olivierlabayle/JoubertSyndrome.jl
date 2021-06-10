@@ -13,7 +13,7 @@ using FreqTables
 
 DIR_OUT = "/Users/olivierlabayle/Documents/JoubertSyndrome"
 
-DATAPATH = joinpath(DIR_OUT, "AA_these_joubert_descriptif_762021_VF.csv")
+DATAPATH = joinpath(DIR_OUT, "AA_these_joubert_descriptif_862021_VF.csv")
 
 
 PHEN_OF_INTEREST = ("Neonatal breathing dysregulations",
@@ -46,6 +46,10 @@ GENES_OF_INTEREST = ("CC2D2A",
 
 data = DataFrame(CSV.File(DATAPATH; missingstrings=["na"]))
 
+
+# ###########################################################################
+#         PVALUES                                                           #
+# ###########################################################################
 
 function getfigures(x, y)
     ct = freqtable(x, y)
@@ -116,13 +120,124 @@ phen_phen_results = phenotype_phenotype_it_results(data, PHEN_OF_INTEREST)
 CSV.write(joinpath(DIR_OUT, "gene_phen.csv"), gene_phen_results[:, Not(["RES_CHI2", "RES_FISH"])])
 CSV.write(joinpath(DIR_OUT, "phen_phen.csv"), phen_phen_results[:, Not(["RES_CHI2", "RES_FISH"])])
 
-# genes = categorical(data.GENE)
-# plot(countmap(genes), 
-#         seriestype=:bar, 
-#         xrotation=45, 
-#         title="Number of patients for each gene",
-#         legend=nothing)
 
+# ###########################################################################
+#         PLOTS                                                             #
+# ###########################################################################
+
+
+genes_to_plot = ["CC2D2A", "CPLANE1", "AHI1", "CEP290", "TMEM67", "OFD1", "NPHP1", "CSPP1"]
+
+phens_to_plot = ["Neonatal breathing dysregulations", "Epilepsy", "Retinal dystrophy", "Coloboma",
+"Kidney defect", "Liver defect", "Orofacial anomalies", "polydactyly", "Multiple pulmonary infections",
+"Endocrinal and/or genital features ", "pure JS"]
+
+
+cols_to_xticks_fr = Dict(
+    "Multiple pulmonary infections" => "Infections respiratoires \nrépétées",
+    "polydactyly" => "Polydactylie",
+    "Endocrinal and/or genital features " => "Anomalies \nendocrino-génitales",
+    "Orofacial anomalies" => "anomalies orofaciales",
+    "Liver defect" => "Atteinte hépatique",
+    "Kidney defect" =>  "Atteinte rénale",
+    "Retinal dystrophy" => "atteinte rétinienne",
+    "Coloboma" => "Colobome",
+    "Epilepsy" => "Epilepsie",
+    "Neonatal breathing dysregulations" => "Troubles respiratoires \nnéonataux",
+    "pure JS" => "JS pure"
+ )
+ 
+
+ cols_to_xticks_en = Dict(
+    "Multiple pulmonary infections" => "Multiple pulmonary \ninfections",
+    "polydactyly" => "Polydactyly",
+    "Endocrinal and/or genital features " => "Endocrinal and/or \ngenital features",
+    "Orofacial anomalies" => "Orofacial anomalies",
+    "Liver defect" => "Liver disease",
+    "Kidney defect" =>  "Kidney disease",
+    "Retinal dystrophy" => "Retinal disease",
+    "Coloboma" => "Coloboma",
+    "Epilepsy" => "Epilepsy",
+    "Neonatal breathing dysregulations" => "Neonatal breathing \ndysregulations",
+    "pure JS" => "Pure JS"
+    )
+
+
+function myfreq(x)
+    nomiss_x = skipmissing(x)
+    nbyes = sum(nomiss_x .== "oui")
+    nb = length(collect(nomiss_x))
+    return round(100*nbyes/nb, digits=2)
+end
+
+function getstars(gene_phen_results::DataFrame, gene, phen)
+    pvals = filter(row->(row.Gene == gene && row.Phenotype == phen),  
+            gene_phen_results)[1, [:PVAL_FISH, :PVAL_CHI2]]
+    pvals = Vector(pvals)
+    if all(pvals .< 0.001)
+        return " (***)"
+    elseif all(pvals .< 0.01)
+        return " (**)"
+    elseif all(pvals .< 0.05)
+        return " (*)"
+    else
+        return ""
+    end
+end
+
+function Base.unique(ctg::CategoricalArray)
+    l = levels(ctg)
+    newctg = CategoricalArray(l)
+    levels!(newctg, l)
+end
+
+function save_plots(data, genes_to_plot, phens_to_plot, gene_phen_results, cols_to_xticks;
+                     dirout=DIR_OUT,
+                     lang="en",
+                     titlebase="Phenotype affection for gene ", 
+                     xlabel="Phenotypes", 
+                     ylabel="Percentage of affected individuals",
+                     groups=["Mutated", "Not mutated"])
+    for gene in genes_to_plot
+        data[!, gene] = data[!, "GENE"] .== gene
+        grouped = groupby(data, gene)
+        freqs = combine(grouped, phens_to_plot .=> myfreq)
+        mutation_true_freqs = Vector(filter(row->row[gene] === true, freqs)[1, Not(gene)])
+        mutation_false_freqs = Vector(filter(row->row[gene] === false, freqs)[1, Not(gene)])
+        xticks = [cols_to_xticks[phen] * getstars(gene_phen_results, gene, phen) for phen in phens_to_plot]
+        xticks = categorical(repeat(xticks, outer=2), levels=xticks)
+        p = groupedbar(xticks, [mutation_true_freqs mutation_false_freqs], 
+                    bar_position=:dodge, 
+                    bar_width=0.7,
+                    xlabel=xlabel,
+                    xtickfontsize=7,
+                    title=titlebase * gene,
+                    rotation=45,
+                    ylims=(0, 100),
+                    legend=:topleft,
+                    ylabel=ylabel,
+                    group=repeat(groups, inner=length(phens_to_plot)))
+        savefig(p, joinpath(dirout, "$(gene)_barplot_$lang.png"))
+    end
+end
+
+data_to_plot = data[:, vcat(phens_to_plot, ["GENE"])]
+
+save_plots(data_to_plot, genes_to_plot, phens_to_plot, gene_phen_results, cols_to_xticks_en;
+                     dirout=DIR_OUT,
+                     lang="en",
+                     titlebase="Phenotype affection for gene ", 
+                     xlabel="Phenotypes", 
+                     ylabel="Percentage of affected individuals",
+                     groups=["Mutated", "Not mutated"])
+
+save_plots(data_to_plot, genes_to_plot, phens_to_plot, gene_phen_results, cols_to_xticks_fr;
+                     dirout=DIR_OUT,
+                     lang="fr",
+                     titlebase="Phénotype du gène ", 
+                     xlabel="Phénotypes", 
+                     ylabel="Pourcentage d'individus affectés",
+                     groups=["Muté", "Non muté"])
 
 
 end
