@@ -137,14 +137,14 @@ cols_to_xticks_fr = Dict(
     "Multiple pulmonary infections" => "Infections respiratoires \nrépétées",
     "polydactyly" => "Polydactylie",
     "Endocrinal and/or genital features " => "Anomalies \nendocrino-génitales",
-    "Orofacial anomalies" => "anomalies orofaciales",
+    "Orofacial anomalies" => "Anomalies orofaciales",
     "Liver defect" => "Atteinte hépatique",
     "Kidney defect" =>  "Atteinte rénale",
-    "Retinal dystrophy" => "atteinte rétinienne",
+    "Retinal dystrophy" => "Atteinte rétinienne",
     "Coloboma" => "Colobome",
     "Epilepsy" => "Epilepsie",
     "Neonatal breathing dysregulations" => "Troubles respiratoires \nnéonataux",
-    "pure JS" => "JS pure"
+    "pure JS" => """JS \"pur\""""
  )
  
 
@@ -159,7 +159,7 @@ cols_to_xticks_fr = Dict(
     "Coloboma" => "Coloboma",
     "Epilepsy" => "Epilepsy",
     "Neonatal breathing dysregulations" => "Neonatal breathing \ndysregulations",
-    "pure JS" => "Pure JS"
+    "pure JS" => """\"Pure\" JS"""
     )
 
 
@@ -198,6 +198,7 @@ function save_plots(data, genes_to_plot, phens_to_plot, gene_phen_results, cols_
                      xlabel="Phenotypes", 
                      ylabel="Percentage of affected individuals",
                      groups=["Mutated", "Not mutated"])
+    export_df = DataFrame()
     for gene in genes_to_plot
         data[!, gene] = data[!, "GENE"] .== gene
         grouped = groupby(data, gene)
@@ -209,16 +210,20 @@ function save_plots(data, genes_to_plot, phens_to_plot, gene_phen_results, cols_
         p = groupedbar(xticks, [mutation_true_freqs mutation_false_freqs], 
                     bar_position=:dodge, 
                     bar_width=0.7,
-                    xlabel=xlabel,
+                    # xlabel=xlabel,
                     xtickfontsize=7,
                     title=titlebase * gene,
                     rotation=45,
+                    fontfamily="Times",
                     ylims=(0, 100),
-                    legend=:topleft,
+                    legend=:best,
                     ylabel=ylabel,
                     group=repeat(groups, inner=length(phens_to_plot)))
         savefig(p, joinpath(dirout, "$(gene)_barplot_$lang.png"))
+        export_df[!, "$(gene)_mutation_true_freqs"] = mutation_true_freqs
+        export_df[!, "$(gene)_mutation_false_freqs"] = mutation_false_freqs
     end
+    return export_df
 end
 
 data_to_plot = data[:, vcat(phens_to_plot, ["GENE"])]
@@ -231,13 +236,16 @@ save_plots(data_to_plot, genes_to_plot, phens_to_plot, gene_phen_results, cols_t
                      ylabel="Percentage of affected individuals",
                      groups=["Mutated", "Not mutated"])
 
-save_plots(data_to_plot, genes_to_plot, phens_to_plot, gene_phen_results, cols_to_xticks_fr;
+export_df = save_plots(data_to_plot, genes_to_plot, phens_to_plot, gene_phen_results, cols_to_xticks_fr;
                      dirout=DIR_OUT,
                      lang="fr",
                      titlebase="Phénotype du gène ", 
                      xlabel="Phénotypes", 
                      ylabel="Pourcentage d'individus affectés",
                      groups=["Muté", "Non muté"])
+
+# export_df[!, "Phenotypes"] = phens_to_plot
+# CSV.write(joinpath(DIR_OUT, "freqs.csv"), export_df)
 
 
 end
