@@ -1,4 +1,4 @@
-module JoubertSyndrome
+
 
 using DataFrames
 using CSV
@@ -13,7 +13,7 @@ using FreqTables
 
 DIR_OUT = "/Users/olivierlabayle/Documents/JoubertSyndrome"
 
-DATAPATH = joinpath(DIR_OUT, "AA_these_joubert_descriptif_862021_VF.csv")
+DATAPATH = joinpath(DIR_OUT, "AA_base_joubert_statistiques_OL_11621.csv")
 
 
 PHEN_OF_INTEREST = ("Neonatal breathing dysregulations",
@@ -244,8 +244,6 @@ export_df = save_plots(data_to_plot, genes_to_plot, phens_to_plot, gene_phen_res
                      ylabel="Pourcentage d'individus affectés",
                      groups=["Muté", "Non muté"])
 
-# export_df[!, "Phenotypes"] = phens_to_plot
-# CSV.write(joinpath(DIR_OUT, "freqs.csv"), export_df)
 
 
-end
+
